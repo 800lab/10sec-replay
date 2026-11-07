@@ -1,6 +1,6 @@
 # 10秒リプレイ v0.3.2
 
-[アプリを開く](https://yaokode.github.io/10sec-replay/)
+[アプリを開く](https://azurewood-lab.github.io/10sec-replay/)
 
 - 選んだ秒数あとに自動表示、または直前の動きをスロー再生。
 - 5・10・15秒、1・0.5・0.25倍。無料・広告なし、登録・インストール不要。
