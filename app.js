@@ -4,7 +4,7 @@ const $ = id => document.getElementById(id);
 const ui = Object.fromEntries(['app','source','display','empty','empty-text','view-state','status','start','pause','watch','again','switch','fullscreen','end','review-controls','seek','clip-time','quality','seconds','viewer','speed','speed-setting','mirror','mode-hint','delay-name','slow-name','viewport'].map(id => [id, $(id)]));
 const profiles = { standard:{width:480,height:270,fps:10}, light:{width:320,height:180,fps:8} };
 const MAX_IMAGE_BYTES = 64 * 1024 * 1024;
-const REVIEW_MS = 60000, SESSION_MS = 15 * 60 * 1000;
+const REVIEW_MS = 60000, SESSION_MS = 120 * 60 * 1000;
 const ctx = ui.display.getContext('2d', {alpha:false});
 let mode = 'delay', phase = 'idle', generation = 0, session = null, review = null;
 let rate = 0.5, selectedDevice = '', devices = [], retainedTimer = 0, reviewRaf = 0, layoutRaf = 0;
@@ -155,7 +155,7 @@ async function startCamera(deviceId = '') {
     overlay(`準備中 あと約${seconds()}秒`);
     badge(mode === 'delay' ? `${seconds()}秒あと` : '準備中');
 
-    s.limitTimer = setTimeout(()=>{if(session===s) stop('15分経過のため終了しました。');},SESSION_MS);
+    s.limitTimer = setTimeout(()=>{if(session===s) stop('120分経過のため終了しました。');},SESSION_MS);
     s.watchdog = setInterval(()=>{
       if (session !== s) return;
       if (performance.now()-s.lastVideo > 5000) { stop('映像が止まりました。カメラの接続を確認してください。',true); return; }
