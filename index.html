@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src 'self'; connect-src 'none'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
-  <meta name="description" content="自動の遅延表示と、直前の動きをスローで見返す体育用アプリ。登録不要・広告なし・映像は端末内だけ。">
+  <meta name="description" content="体育の動きを、遅れて再生したりスローで見返したりできるアプリ。映像は端末内で処理。">
+  <meta name="application-version" content="0.3.4">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./style.css">
   <script type="module" src="./app.js"></script>
@@ -44,12 +45,8 @@
         <button id="end" class="danger" type="button" disabled>おわる</button>
       </div>
       <p id="status" class="status" role="status" aria-live="polite" hidden></p>
+      <footer class="privacy-note">映像は端末内で処理。音声収録・保存・外部送信なし。</footer>
     </section>
-    <details id="about"><summary>このアプリについて</summary>
-      <p>無料・広告なし。映像は端末内で処理。音声収録・保存・外部送信なし。</p>
-      <p>配信サービスにはアクセスログが残ります。</p>
-      <p>試用版 v0.3.3</p>
-    </details>
   </main>
   <noscript><p>JavaScriptを有効にしてください。</p></noscript>
   <video id="source" muted playsinline aria-hidden="true"></video>

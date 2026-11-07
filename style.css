@@ -9,7 +9,7 @@ button:disabled {opacity:.5;cursor:default;}
 button[aria-pressed="true"] {background:#e0f1ee;border-color:#006c67;color:#005650;}
 button.primary {background:#006c67;color:#fff;border-color:#006c67;}
 button.danger {color:#9e2333;border-color:#c89198;}
-button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible,summary:focus-visible {outline:3px solid #006c67;outline-offset:3px;}
+button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible {outline:3px solid #006c67;outline-offset:3px;}
 select {padding:5px 26px 5px 9px;}
 input[type="checkbox"] {width:22px;height:22px;accent-color:#006c67;}
 header {max-width:1240px;margin:auto;padding:12px 16px 8px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
@@ -42,14 +42,13 @@ canvas {display:block;width:100%;height:100%;object-fit:contain;}
 #seek {width:100%;height:28px;margin:0;accent-color:#006c67;cursor:pointer;}
 .status {font-size:13px;margin:4px 12px 9px;min-height:18px;line-height:1.45;}
 .status.error {color:#922333;font-weight:650;}
-details {border-top:1px solid #d6dce3;padding:10px 0;font-size:14px;line-height:1.65;}
-summary {cursor:pointer;font-weight:650;min-height:32px;}
-details p {margin:8px 0;}
+.privacy-note {margin:0 10px 6px;text-align:right;font-size:11px;line-height:1.5;color:#506073;}
 #source {position:fixed;left:-2px;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;}
 .viewer:fullscreen,.viewer.expanded {width:100%;height:100%;height:100svh;max-width:none;border:0;border-radius:0;display:flex;flex-direction:column;background:#fff;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);}
 .viewer.expanded {position:fixed;inset:0;z-index:100;}
 .viewer:fullscreen .viewport,.viewer.expanded .viewport {flex:1;height:auto;min-height:0;max-height:none;}
 .viewer:fullscreen .controls,.viewer.expanded .controls {flex-shrink:0;}
+.viewer:fullscreen .privacy-note,.viewer.expanded .privacy-note {display:none;}
 .view-expanded {overflow:hidden;}
 @media(max-width:600px) {
   header {padding:9px 10px 6px;gap:8px;}
