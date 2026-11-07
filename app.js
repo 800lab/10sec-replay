@@ -4,7 +4,7 @@ const $ = id => document.getElementById(id);
 const ui = Object.fromEntries(['app','source','display','empty','empty-text','view-state','status','start','pause','watch','again','switch','fullscreen','end','review-controls','seek','clip-time','quality','seconds','viewer','speed','speed-setting','mirror','mode-hint','delay-name','slow-name','viewport'].map(id => [id, $(id)]));
 const profiles = { standard:{width:480,height:270,fps:10}, light:{width:320,height:180,fps:8} };
 const MAX_IMAGE_BYTES = 64 * 1024 * 1024;
-const REVIEW_MS = 60000, SESSION_MS = 120 * 60 * 1000;
+const RETAINED_IDLE_MS = 60000, SESSION_MS = 120 * 60 * 1000;
 const ctx = ui.display.getContext('2d', {alpha:false});
 let mode = 'delay', phase = 'idle', generation = 0, session = null, review = null;
 let rate = 0.5, selectedDevice = '', devices = [], retainedTimer = 0, reviewRaf = 0, layoutRaf = 0;
@@ -91,6 +91,13 @@ function clearReview() {
   cancelAnimationFrame(reviewRaf); reviewRaf = 0;
   review?.sequence.clear(); review = null;
   ui.seek.value = '0'; ui.seek.removeAttribute('aria-valuetext'); ui['clip-time'].textContent = '';
+}
+function updateReviewRetention() {
+  clearTimeout(retainedTimer); retainedTimer = 0;
+  // A finite playback must finish. Only a stopped review counts as idle.
+  if (review && !review.playing) {
+    retainedTimer = setTimeout(()=>stop('再生を止めてから60秒経過。映像を消去しました。'),RETAINED_IDLE_MS);
+  }
 }
 function disposeSession() {
   const old = session; session = null;
@@ -226,7 +233,7 @@ function checkPerformance(s) {
 function pauseLive() {
   generation++;disposeSession();phase='paused';badge('静止画・カメラ停止');
   message('');
-  retainedTimer=setTimeout(()=>stop('一時停止から60秒経過。映像を消去しました。'),REVIEW_MS);
+  retainedTimer=setTimeout(()=>stop('一時停止から60秒経過。映像を消去しました。'),RETAINED_IDLE_MS);
   renderControls();
 }
 function watchRecent() {
@@ -239,7 +246,6 @@ function watchRecent() {
   review={sequence,position:0,playing:true,lastNow:performance.now()};phase='review';
   badge('見返し・カメラ停止');overlay();
   message('');
-  retainedTimer=setTimeout(()=>stop('再生開始から60秒経過。映像を消去しました。'),REVIEW_MS);
   drawReview();renderControls();reviewLoop();
 }
 function advanceReview(now) {
@@ -258,30 +264,30 @@ function drawReview() {
 function reviewLoop() {
   if(!review || phase!=='review')return;
   const playing=review.playing;advanceReview(performance.now());drawReview();
-  if(playing!==review.playing)renderControls();
+  if(playing!==review.playing){updateReviewRetention();renderControls();}
   reviewRaf=requestAnimationFrame(reviewLoop);
 }
 ui.start.addEventListener('click',()=>startCamera(selectedDevice));
 ui.end.addEventListener('click',()=>stop());
 ui.watch.addEventListener('click',watchRecent);
-ui.again.addEventListener('click',()=>{if(review){review.position=0;review.playing=true;review.lastNow=performance.now();drawReview();renderControls();}});
+ui.again.addEventListener('click',()=>{if(review){review.position=0;review.playing=true;review.lastNow=performance.now();updateReviewRetention();drawReview();renderControls();}});
 ui.pause.addEventListener('click',()=>{
   if(phase==='live')pauseLive();
-  else if(review){advanceReview(performance.now());if(review.position>=review.sequence.duration)review.position=0;review.playing=!review.playing;review.lastNow=performance.now();drawReview();renderControls();}
+  else if(review){advanceReview(performance.now());if(review.position>=review.sequence.duration)review.position=0;review.playing=!review.playing;review.lastNow=performance.now();updateReviewRetention();drawReview();renderControls();}
 });
-ui.seek.addEventListener('input',()=>{if(review){review.position=Number(ui.seek.value)/1000*review.sequence.duration;review.playing=false;review.lastNow=performance.now();drawReview();renderControls();}});
+ui.seek.addEventListener('input',()=>{if(review){review.position=Number(ui.seek.value)/1000*review.sequence.duration;review.playing=false;review.lastNow=performance.now();updateReviewRetention();drawReview();renderControls();}});
 ui.switch.addEventListener('click',()=>{if(devices.length>1)startCamera(devices[(devices.findIndex(device=>device.deviceId===selectedDevice)+1)%devices.length].deviceId);});
 for(const button of document.querySelectorAll('button[data-mode]'))button.addEventListener('click',()=>{
   if(button.dataset.mode===mode)return;
   mode=button.dataset.mode;stop();
 });
-ui.speed.addEventListener('change',()=>{advanceReview(performance.now());rate=Number(ui.speed.value);drawReview();renderControls();});
+ui.speed.addEventListener('change',()=>{advanceReview(performance.now());rate=Number(ui.speed.value);if(review)updateReviewRetention();drawReview();renderControls();});
 for(const control of [ui.seconds,ui.quality])control.addEventListener('change',()=>{
   if(phase==='live')startCamera(selectedDevice);
   else stop();
 });
 ui.mirror.addEventListener('change',()=>{
-  if(review)drawReview();
+  if(review){updateReviewRetention();drawReview();}
   else if(phase==='paused'){
     const copy=document.createElement('canvas');copy.width=ui.display.width;copy.height=ui.display.height;
     const copyContext=copy.getContext('2d');
