@@ -6,10 +6,10 @@
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src 'self'; connect-src 'none'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <meta name="description" content="体育の動きを、遅れて再生したりスローで見返したりできるアプリ。映像は端末内で処理。">
-  <meta name="application-version" content="0.3.5">
+  <meta name="application-version" content="0.5.0">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./style.css">
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="./app.js?v=0.5.0"></script>
   <title>10秒リプレイ｜体育の動きを見返す</title>
 </head>
 <body>
@@ -20,7 +20,7 @@
       <button type="button" data-mode="slow" aria-pressed="false"><span class="mode-name" id="slow-name">直前10秒をスロー再生</span><span class="mode-help">動いたあと「見る」を押す</span></button>
     </div></fieldset>
     <div class="settings" aria-label="映像の設定">
-      <label for="seconds">時間 <select id="seconds"><option value="5">5秒</option><option value="10" selected>10秒</option><option value="15">15秒</option></select></label>
+      <label for="seconds">時間 <select id="seconds"><option value="5">5秒</option><option value="10" selected>10秒</option><option value="15">15秒</option><option value="20" disabled>20秒</option><option value="30" disabled>30秒</option></select></label>
       <label for="quality">画質 <select id="quality"><option value="standard">標準</option><option value="light">低め</option></select></label>
       <label class="check-label"><input id="mirror" type="checkbox">左右反転</label>
       <button id="switch" type="button" disabled>カメラ切替</button>
@@ -35,17 +35,21 @@
         <label class="seek-label" for="seek">見たいところへ <span id="clip-time"></span></label>
         <input type="range" id="seek" min="0" max="1000" value="0" aria-label="映像の再生位置（秒）">
       </div>
+      <div id="save-panel" aria-label="保存する区間" hidden>
+        <div class="trim-row"><button id="mark-start" type="button">ここから</button><button id="mark-end" type="button">ここまで</button><output id="trim-range"></output><button id="trim-preview" type="button">区間を見る</button></div>
+        <div class="trim-row"><button id="save-normal" class="primary" type="button">動画を保存</button><button id="save-slow" type="button">スローを保存（0.5倍）</button><button id="save-close" type="button">もどる</button><span id="save-direction" hidden>保存は撮影した向き</span></div>
+      </div>
       <div class="controls" aria-label="カメラと再生の操作">
         <button id="start" class="primary" type="button">はじめる</button>
         <button id="watch" class="primary" type="button" hidden>直前10秒を見る</button>
         <button id="again" type="button" hidden>もう一度</button>
+        <button id="save-open" type="button" hidden>区間を選んで保存</button>
         <button id="pause" type="button" hidden>とめる</button>
-        <label id="speed-setting" hidden>速さ <select id="speed"><option value="1">1倍</option><option value="0.5" selected>0.5倍</option><option value="0.25">0.25倍</option></select></label>
         <button id="fullscreen" type="button" aria-pressed="false">映像を大きく</button>
         <button id="end" class="danger" type="button" disabled>おわる</button>
       </div>
       <p id="status" class="status" role="status" aria-live="polite" hidden></p>
-      <footer class="privacy-note">映像は端末内で処理。音声収録・保存・外部送信なし。</footer>
+      <footer class="privacy-note">映像は端末内で処理。音声収録・自動保存・外部送信なし。</footer>
     </section>
   </main>
   <noscript><p>JavaScriptを有効にしてください。</p></noscript>

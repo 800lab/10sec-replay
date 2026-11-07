@@ -76,3 +76,14 @@ canvas {display:block;width:100%;height:100%;object-fit:contain;}
 }
 
 @media(max-width:420px) {.segmented button {font-size:14px;}}
+
+#save-panel {padding:4px 10px;font-size:13px;flex-shrink:0;}
+.trim-row {display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:5px;}
+.trim-row button {font-size:14px;padding:6px 10px;}
+#trim-range {font-variant-numeric:tabular-nums;min-width:90px;}
+#save-direction {font-size:12px;}
+.viewer[data-editing="true"] {position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;width:100%;height:100svh;border:0;border-radius:0;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);}
+.viewer[data-editing="true"] .viewport {flex:1;height:auto;max-height:none;min-height:0;}
+.viewer[data-editing="true"] .controls,.viewer[data-editing="true"] #review-controls {flex-shrink:0;}
+.viewer[data-editing="true"] .privacy-note {display:none;}
+@media(max-width:420px) {.trim-row button {padding:5px 8px;font-size:13px;}#save-panel {padding:3px 6px;}}
