@@ -1,6 +1,6 @@
-import { FrameBuffer, PlanarFrame, capturePlan } from './frame-buffer.mjs?v=0.5.0';
-import { chooseCodec, videoProfiles, EncodedFrame, CodecPainter } from './video-codec.mjs?v=0.5.0';
-import { createVideoFile } from './video-file.mjs?v=0.5.0';
+import { FrameBuffer, PlanarFrame, capturePlan } from './frame-buffer.mjs?v=0.5.1';
+import { chooseCodec, videoProfiles, frameByteLimit, EncodedFrame, CodecPainter } from './video-codec.mjs?v=0.5.1';
+import { createVideoFile } from './video-file.mjs?v=0.5.1';
 
 const $ = id => document.getElementById(id);
 const ui = Object.fromEntries(['app','source','display','empty','empty-text','view-state','status','start','pause','watch','again','switch','fullscreen','end','review-controls','seek','clip-time','quality','seconds','viewer','mirror','mode-hint','delay-name','slow-name','viewport','save-open','save-panel','mark-start','mark-end','trim-range','trim-preview','save-normal','save-slow','save-close','save-direction'].map(id => [id, $(id)]));
@@ -182,7 +182,7 @@ async function startCamera(deviceId = '') {
   const config=info?{...profile,format:'video',maxAgeMs:(history+.8)*1000,maxFrames:Math.ceil((history+.8)*profile.fps)+2}:capturePlan(profile,seconds(),MAX_IMAGE_BYTES,history);
   const scratch = document.createElement('canvas'); scratch.width = config.width; scratch.height = config.height;
   const s = {
-    config, info, encoder:null, scratch, ctx:scratch.getContext('2d',{alpha:false,willReadFrequently:true}), stream:null, disposed:false,
+    config, info, encoder:null, quantizer:ui.quality.value==='light'?20:24,encodeRetries:0,smallFrames:0,byteLimit:frameByteLimit(config.fps),scratch, ctx:scratch.getContext('2d',{alpha:false,willReadFrequently:true}), stream:null, disposed:false,
     buffer:new FrameBuffer({maxFrames:config.maxFrames,maxBytes:MAX_IMAGE_BYTES,maxAgeMs:config.maxAgeMs}),
     pending:false, nextCapture:0, lastMedia:-1, lastVideo:performance.now(), sampleTime:performance.now(),
     sampleFrames:0, fps:0, ready:false, reviewReady:false, lastDisplayed:null, lastPaint:performance.now(), performanceWarned:false,lastImage:performance.now(),
@@ -199,7 +199,15 @@ async function startCamera(deviceId = '') {
         if(s.disposed||session!==s)return;
         if(metadata.decoderConfig)info.decoderConfig=metadata.decoderConfig;
         if(chunk.type!=='key'||!info.decoderConfig){fail({userMessage:'動画を保持できません。別の画質で再開してください。'});return;}
+        if(chunk.byteLength>s.byteLimit){
+          // A bitrate hint alone can be exceeded by all-keyframe encoders.
+          // Retry this same still-owned capture; never truncate its bytes or
+          // silently shorten the available history to stay under the limit.
+          if(info.quantizer&&s.quantizer<44&&s.encodeRetries<10){s.quantizer++;s.encodeRetries++;encodeCapture(s);return;}
+          fail({userMessage:'映像の容量が大きすぎます。画質を「低め」にして再開してください。'});return;
+        }
         s.buffer.push(new EncodedFrame(chunk,info),chunk.timestamp/1000);s.sampleFrames++;s.lastImage=performance.now();s.pending=false;
+        if(info.quantizer){s.smallFrames=chunk.byteLength<s.byteLimit*.5?s.smallFrames+1:0;if(s.smallFrames>=config.fps*2){s.quantizer=Math.max(20,s.quantizer-1);s.smallFrames=0;}}
       },error:error=>{if(!s.disposed&&session===s)fail(error);}});
       s.encoder.configure(info.config);
     }
@@ -214,7 +222,7 @@ async function startCamera(deviceId = '') {
       if (session === s) stop('カメラの接続が切れました。接続を確認してください。',true);
     }));
     ui.display.width = config.width; ui.display.height = config.height;
-    s.sampleTime = s.lastVideo = s.lastImage = performance.now(); phase = 'live';
+    s.sampleTime = s.lastVideo = s.lastImage = s.lastFrameCallback = performance.now(); phase = 'live';
     s.displayDeadline=performance.now()+(mode==='delay'?seconds()*1000:0)+5000;
     s.bufferDeadline=performance.now()+config.maxAgeMs+5000;
     overlay(`準備中 あと約${seconds()}秒`);
@@ -240,12 +248,14 @@ async function startCamera(deviceId = '') {
 function captureLoop(s) {
   const next = () => {
     if (s.disposed) return;
-    if (ui.source.requestVideoFrameCallback) s.videoCallback=ui.source.requestVideoFrameCallback(step);
+    if (ui.source.requestVideoFrameCallback) s.videoCallback=ui.source.requestVideoFrameCallback(now=>{s.lastFrameCallback=now;step(now);});
     else s.captureRaf=requestAnimationFrame(step);
   };
-  const step = now => {
+  const step = (now,reschedule=true) => {
     if (s.disposed) return;
-    next();
+    if(reschedule)next();
+    const decoded=ui.source.getVideoPlaybackQuality?.().totalVideoFrames;
+    if(decoded>0){if(decoded===s.lastDecodedFrame)return;s.lastDecodedFrame=decoded;}
     const mediaTime=ui.source.currentTime;
     if(mediaTime===s.lastMedia || !ui.source.videoWidth) return;
     s.lastMedia=mediaTime;s.lastVideo=now;
@@ -257,8 +267,7 @@ function captureLoop(s) {
       s.ctx.fillStyle='#303438';s.ctx.fillRect(0,0,s.config.width,s.config.height);
       s.ctx.drawImage(ui.source,(s.config.width-w)/2,(s.config.height-h)/2,w,h);
       if(s.encoder){
-        const frame=new VideoFrame(s.scratch,{timestamp:Math.round(now*1000)});
-        try{s.encoder.encode(frame,{keyFrame:true});}finally{frame.close();}return;
+        s.captureTimestamp=Math.round(now*1000);s.encodeRetries=0;encodeCapture(s);return;
       }
       if(s.config.format==='I420'){
         const pixels=s.ctx.getImageData(0,0,s.config.width,s.config.height).data;
@@ -272,12 +281,22 @@ function captureLoop(s) {
       }).catch(error=>{if(!s.disposed)fail(error);}).finally(()=>{s.pending=false;});
     } catch(error){s.pending=false;fail(error);}
   };
+  // Some camera/Chrome combinations advance currentTime without frame callbacks.
+  // Reuse the existing render RAF only while callbacks are missing; the same
+  // mediaTime, rate and pending guards prevent duplicate captures or encodes.
+  s.captureIfStalled=now=>{if(ui.source.requestVideoFrameCallback&&now-s.lastFrameCallback>250)step(now,false);};
   next();
+}
+function encodeCapture(s){
+  if(s.disposed)return;
+  const frame=new VideoFrame(s.scratch,{timestamp:s.captureTimestamp});
+  try{s.encoder.encode(frame,{keyFrame:true,...(s.info.quantizer?{avc:{quantizer:s.quantizer}}:{})});}
+  catch(error){fail(error);}finally{frame.close();}
 }
 function renderLoop(s) {
   if (s.disposed) return;
   s.renderRaf=requestAnimationFrame(()=>renderLoop(s));
-  const now=performance.now();s.buffer.prune(now);
+  const now=performance.now();s.captureIfStalled?.(now);s.buffer.prune(now);
   const frame=mode==='delay'?s.buffer.atOrBefore(now-seconds()*1000):s.buffer.frames.at(-1);
   if(frame){
     if(now-frame.time>(mode==='delay'?seconds()*1000:0)+1000){stop('映像が遅れたため終了しました。画質を「低め」にして再開してください。',true);return;}

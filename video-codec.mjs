@@ -1,16 +1,18 @@
 // Native codecs only; independent keyframes allow exact local cuts and remuxing.
 export const videoProfiles={standard:{width:640,height:360,fps:24,bitrate:6000000},light:{width:480,height:270,fps:15,bitrate:2500000}};
+// Leave room for the longest history and also keep any 30-second export <32MiB.
+export function frameByteLimit(fps){return Math.floor(64*1024*1024*.98/(Math.ceil(60.8*fps)+2));}
 
 export async function chooseCodec(profile) {
   if(typeof VideoEncoder!=='function'||typeof VideoDecoder!=='function'||typeof VideoFrame!=='function'||typeof ArrayBuffer.prototype.transfer!=='function')return null;
   try {
     const probe=new VideoFrame(new Uint8Array(6),{format:'I420',codedWidth:2,codedHeight:2,timestamp:0});
     try{await probe.copyTo(new Uint8Array(16),{format:'RGBA'});}finally{probe.close();}
-    for(const codec of ['avc1.42001f','vp8']){
+    for(const [codec,quantizer] of [['avc1.64001f',true],['avc1.42001f',true],['avc1.64001f',false],['avc1.42001f',false],['vp8',false]]){
       try{
-        const config={codec,width:profile.width,height:profile.height,framerate:profile.fps,bitrate:profile.bitrate,latencyMode:'realtime',...(codec.startsWith('avc')?{avc:{format:'avc'}}:{})};
+        const config={codec,width:profile.width,height:profile.height,framerate:profile.fps,...(quantizer?{bitrateMode:'quantizer'}:{bitrate:profile.bitrate}),latencyMode:'realtime',...(codec.startsWith('avc')?{avc:{format:'avc'}}:{})};
         const [encoded,decoded]=await Promise.all([VideoEncoder.isConfigSupported(config),VideoDecoder.isConfigSupported({codec})]);
-        if(encoded.supported&&decoded.supported)return {config,codec,container:codec.startsWith('avc')?'mp4':'webm',...profile};
+        if(encoded.supported&&decoded.supported)return {config,codec,quantizer,container:codec.startsWith('avc')?'mp4':'webm',...profile};
       }catch{ /* A rejected codec must not hide the other supported codec. */ }
     }
   }catch{ /* A device without these codecs keeps the compact legacy path. */ }
